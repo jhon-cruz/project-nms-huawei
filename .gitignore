@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+uvicorn.log
+*.log
+data/*.db
+data/*.db-*
+data/*.db.bak.*
+data/.nms_secret.key
+.DS_Store

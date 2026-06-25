@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Huawei NMS Control</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <section id="auth-screen" class="auth-screen">
+    <div class="auth-card">
+      <div class="brand auth-brand">
+        <div class="brand-mark">HN</div>
+        <div>
+          <strong>Huawei NMS</strong>
+          <span>Control Center</span>
+        </div>
+      </div>
+      <p class="eyebrow" id="auth-mode">Acesso seguro</p>
+      <h1 id="auth-title">Entrar no sistema</h1>
+      <p class="auth-copy" id="auth-copy">Acesse o painel de gerenciamento do NMS.</p>
+      <form id="auth-form" class="device-form" onsubmit="if (window.nmsSubmitAuth) { window.nmsSubmitAuth(event); } return false;">
+        <label>Usuario <input id="auth-username" required minlength="3" maxlength="64" autocomplete="username" /></label>
+        <label>Senha <input id="auth-password" required type="password" minlength="8" maxlength="128" autocomplete="current-password" /></label>
+        <button type="submit" class="gold-btn" id="auth-submit">Entrar</button>
+        <div id="auth-feedback" class="auth-feedback"></div>
+      </form>
+    </div>
+  </section>
+
+  <div class="app-shell hidden" id="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">HN</div>
+        <div><strong>Huawei NMS</strong><span id="session-label">Control Center</span></div>
+      </div>
+      <nav class="nav" id="main-nav">
+        <a class="active" href="#dashboard" data-page="dashboard">Visao geral</a>
+        <a href="#devices" data-page="devices">Equipamentos</a>
+        <a href="#register" data-page="register" data-admin-only="true">Cadastro</a>
+        <a href="#audit" data-page="audit" data-admin-only="true">Auditoria</a>
+        <a href="#security" data-page="security" data-admin-only="true">Seguranca</a>
+        <a href="#system" data-page="system" data-admin-only="true">Sistema</a>
+      </nav>
+      <div class="sidebar-panel">
+        <span class="status-dot"></span>
+        <div><strong id="role-label">Sessao ativa</strong><small>Controle operacional</small></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow" id="page-eyebrow">NMS externo via SSH + SNMP</p>
+          <h1 id="page-title">Visao geral</h1>
+        </div>
+        <div class="topbar-actions">
+          <button class="ghost-btn" id="logout">Sair</button>
+        </div>
+      </header>
+
+      <section class="page active" id="page-dashboard">
+        <div class="metrics-grid dashboard-metrics">
+          <div class="metric-card"><span>Equipamentos</span><strong id="metric-devices">0</strong><small>Cadastrados</small></div>
+          <div class="metric-card"><span>Online</span><strong id="metric-online">0</strong><small>Com interfaces SNMP up</small></div>
+          <div class="metric-card"><span>Portas Up</span><strong id="metric-ports-up">0</strong><small>Operacionais</small></div>
+          <div class="metric-card"><span>Portas Down</span><strong id="metric-ports-down">0</strong><small>Indisponiveis</small></div>
+        </div>
+        <div class="panel">
+          <div class="section-head"><div><p class="eyebrow">Resumo</p><h3>Equipamentos monitorados</h3></div></div>
+          <div id="dashboard-device-list" class="device-list"></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-devices">
+        <div class="content-grid equipment-grid">
+          <div class="panel">
+            <div class="section-head">
+              <div><p class="eyebrow">Equipamento</p><h3>Selecionar e visualizar</h3></div>
+              <div class="snmp-toolbar">
+                <button type="button" class="ghost-btn compact" id="test-active-ssh">Testar SSH</button>
+                <button type="button" class="ghost-btn compact" id="test-active-snmp">Testar SNMP</button>
+                <button class="ghost-btn compact" id="refresh-interfaces">Atualizar SNMP</button>
+                <label>
+                  Auto
+                  <input id="snmp-interval-value" type="number" min="1" max="1440" value="60" />
+                </label>
+                <select id="snmp-interval-unit">
+                  <option value="seconds">Segundos</option>
+                  <option value="minutes">Minutos</option>
+                </select>
+                <button type="button" class="ghost-btn compact" id="toggle-snmp-auto">Iniciar</button>
+              </div>
+            </div>
+            <label>Equipamento cadastrado <select id="active-device"></select></label>
+            <pre id="connection-test-output" class="command-preview command-output device-test-output">Nenhum teste executado.</pre>
+            <div class="device-faceplate device-faceplate-page">
+              <div class="faceplate-header"><span id="faceplate-title">Equipamento</span><strong id="faceplate-subtitle">Aguardando leitura SNMP</strong></div>
+              <div class="port-grid" id="port-grid"></div>
+            </div>
+            <div id="interfaces-table" class="table-wrap">Selecione um equipamento para carregar interfaces.</div>
+          </div>
+
+          <div class="panel">
+            <div class="section-head"><div><p class="eyebrow">Porta selecionada</p><h3 id="selected-interface-title">Nenhuma porta</h3></div></div>
+            <div id="interface-config-output" class="command-preview">Clique em uma porta para carregar a configuracao.</div>
+            <div class="admin-only config-actions">
+              <div class="section-head"><div><p class="eyebrow">Acoes</p><h3>Configuracao assistida</h3></div></div>
+              <form id="command-form" class="device-form">
+                <label>Equipamento <select id="command-device"></select></label>
+                <label>Interface <input id="command-interface" required maxlength="64" readonly /></label>
+                <label>Acao <select id="command-action"></select></label>
+                <label>Descricao <input id="command-description" maxlength="120" /></label>
+                <button class="gold-btn">Gerar preview</button>
+                <button type="button" class="ghost-btn" id="execute-command">Aplicar no equipamento</button>
+              </form>
+              <details class="command-details">
+                <summary>Visualizar comandos e saida</summary>
+                <pre id="command-preview" class="command-preview">Nenhum preview gerado.</pre>
+                <pre id="command-output" class="command-preview command-output">Nenhuma execucao realizada.</pre>
+              </details>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel bras-panel">
+          <div class="section-head">
+            <div><p class="eyebrow">BRAS/BNG</p><h3>Assinantes, Radius e PPPoE</h3></div>
+            <div class="snmp-toolbar">
+              <button type="button" class="ghost-btn compact" id="bras-auth-refresh">Atualizar falhas</button>
+              <button type="button" class="ghost-btn compact" id="bras-auth-auto">Tempo real</button>
+            </div>
+          </div>
+          <div class="bras-grid">
+            <form id="bras-query-form" class="device-form">
+              <label>Consulta <select id="bras-query-action"></select></label>
+              <label>Parametro <input id="bras-query-value" maxlength="80" placeholder="Login, IP, MAC, VLAN, pool ou interface" /></label>
+              <button class="gold-btn">Consultar</button>
+            </form>
+            <div class="admin-only">
+              <form id="bras-action-form" class="device-form">
+                <label>Acao protegida <select id="bras-admin-action"></select></label>
+                <label>Parametro <input id="bras-admin-value" maxlength="80" placeholder="Conforme acao selecionada" /></label>
+                <div class="form-actions">
+                  <button class="ghost-btn">Preview</button>
+                  <button type="button" class="gold-btn" id="bras-action-execute">Executar</button>
+                </div>
+              </form>
+            </div>
+          </div>
+          <div id="bras-auth-summary" class="auth-log-list">Falhas de autenticacao ainda nao carregadas.</div>
+          <details class="command-details" open>
+            <summary>Resultado BRAS/BNG</summary>
+            <pre id="bras-output" class="command-preview command-output">Nenhuma consulta executada.</pre>
+            <pre id="bras-preview" class="command-preview command-output admin-only">Nenhuma acao gerada.</pre>
+          </details>
+        </div>
+      </section>
+
+      <section class="page" id="page-register">
+        <div class="content-grid">
+          <div class="panel form-panel admin-only">
+            <div class="section-head"><div><p class="eyebrow">Cadastro</p><h3>Equipamentos</h3></div></div>
+            <form id="device-form" class="device-form">
+              <input type="hidden" id="device-id" />
+              <label>Nome amigavel <input id="device-name" maxlength="80" /></label>
+              <label>IP ou dominio <input id="device-host" required maxlength="253" /></label>
+              <label>Descricao <textarea id="device-description" rows="3" maxlength="500"></textarea></label>
+              <label>Tipo <select id="device-type"></select></label>
+              <div class="form-row">
+                <label>Usuario SSH <input id="ssh-username" maxlength="64" autocomplete="off" /></label>
+                <label>Senha SSH <input id="ssh-password" type="password" maxlength="128" autocomplete="new-password" /></label>
+              </div>
+              <div class="form-row">
+                <label>Porta SSH <input id="ssh-port" type="number" min="1" max="65535" placeholder="22" /></label>
+                <label>Porta SNMP <input id="snmp-port" type="number" min="1" max="65535" placeholder="161" /></label>
+              </div>
+              <label>Community SNMP <input id="snmp-community" type="password" maxlength="128" /></label>
+              <div class="form-row">
+                <label>Modelo <input id="device-model" maxlength="80" list="known-models" /></label>
+                <label>VRP <input id="device-vrp" maxlength="80" /></label>
+              </div>
+              <label>Notas <textarea id="device-notes" rows="2" maxlength="1000"></textarea></label>
+              <div class="form-actions">
+                <button type="button" class="ghost-btn" id="reset-form">Limpar</button>
+                <button class="gold-btn" id="save-device">Salvar</button>
+              </div>
+            </form>
+            <datalist id="known-models"></datalist>
+          </div>
+          <div class="panel admin-only">
+            <div class="section-head"><div><p class="eyebrow">Inventario</p><h3>Equipamentos cadastrados</h3></div></div>
+            <div id="device-list" class="device-list"></div>
+            <pre id="device-test-output" class="command-preview command-output device-test-output">Nenhum teste executado.</pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-audit">
+        <div class="panel">
+          <div class="section-head"><div><p class="eyebrow">Auditoria</p><h3>Historico de acoes</h3></div><button class="ghost-btn compact" id="refresh-audit">Atualizar</button></div>
+          <div class="form-row">
+            <label>Equipamento <select id="audit-device"></select></label>
+            <label>Inicio <input id="audit-date-from" type="date" /></label>
+            <label>Fim <input id="audit-date-to" type="date" /></label>
+          </div>
+          <div id="audit-list" class="audit-list"></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-security">
+        <div class="content-grid">
+          <div class="panel">
+            <div class="section-head"><div><p class="eyebrow">Usuarios</p><h3>Gerenciamento de acesso</h3></div></div>
+            <div id="user-list" class="device-list"></div>
+          </div>
+          <div class="panel">
+            <div class="section-head"><div><p class="eyebrow">Novo usuario</p><h3>Admin ou Leitura</h3></div></div>
+            <form id="user-form" class="device-form">
+              <input type="hidden" id="user-id" />
+              <label>Usuario <input id="user-username" minlength="3" maxlength="64" /></label>
+              <label>Senha <input id="user-password" type="password" minlength="8" maxlength="128" /></label>
+              <label>Permissao <select id="user-role"><option value="admin">Admin</option><option value="leitura">Leitura</option></select></label>
+              <div class="form-actions">
+                <button type="button" class="ghost-btn" id="reset-user-form">Limpar</button>
+                <button class="gold-btn" id="save-user">Salvar usuario</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-system">
+        <div class="content-grid">
+          <div class="panel">
+            <div class="section-head">
+              <div><p class="eyebrow">Atualizacao</p><h3>Repositorio e servico</h3></div>
+              <button type="button" class="ghost-btn compact" id="refresh-system">Atualizar status</button>
+            </div>
+            <div id="system-status" class="system-status">Status ainda nao carregado.</div>
+          </div>
+          <div class="panel admin-only">
+            <div class="section-head"><div><p class="eyebrow">Deploy</p><h3>Atualizar sistema</h3></div></div>
+            <button type="button" class="gold-btn" id="run-system-update">Baixar atualizacao e reiniciar</button>
+            <pre id="system-update-output" class="command-preview command-output">Nenhuma atualizacao executada.</pre>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status"></div>
+  <script src="/main.js"></script>
+</body>
+</html>
