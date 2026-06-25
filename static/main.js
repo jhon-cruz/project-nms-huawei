@@ -53,12 +53,16 @@ function parseErrorMessage(error) {
     const data = JSON.parse(error.message);
     if (typeof data.detail === 'string') return data.detail;
     if (data.detail && typeof data.detail === 'object') {
+      const diagnostics = (data.detail.diagnostics || [])
+        .map((item) => `${item.oid}: ${item.ok ? 'OK' : 'falhou'} (${item.count || 0})${item.error ? ' - ' + item.error : ''}`)
+        .join('\n');
       return [
         data.detail.message,
         data.detail.error_type ? `Tipo: ${data.detail.error_type}` : '',
         data.detail.host ? `Destino: ${data.detail.host}:${data.detail.port || 22}` : '',
         data.detail.username ? `Usuario: ${data.detail.username}` : '',
         data.detail.hint ? `Dica: ${data.detail.hint}` : '',
+        diagnostics,
       ].filter(Boolean).join('\n');
     }
     return error.message;

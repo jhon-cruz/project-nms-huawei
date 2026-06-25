@@ -14,6 +14,7 @@ from app.storage import ensure_default_admin, get_connection, init_db
 from app.parsers import parse_version
 from app.commands import build_interface_command_preview
 from app.bras import build_bras_admin_preview, build_bras_query_command, simplify_auth_failures
+from app import snmp_client
 from app.snmp_client import _if_type, _parse_walk
 
 
@@ -186,6 +187,17 @@ def test_snmp_walk_parser_extracts_ifname_indexes():
 def test_snmp_if_type_labels_ethernet():
     assert _if_type("INTEGER: ethernetCsmacd(6)") == "ethernetCsmacd"
     assert _if_type("6") == "ethernetCsmacd"
+
+
+def test_snmp_collect_marks_timeout_as_unreachable(monkeypatch):
+    def fail_walk(*args, **kwargs):
+        raise RuntimeError("Timeout: No Response from 192.0.2.1")
+
+    monkeypatch.setattr(snmp_client, "_snmpwalk", fail_walk)
+    result = snmp_client.collect_interfaces_with_diagnostics("192.0.2.1", 161, "public")
+    assert result["reachable"] is False
+    assert "Sem resposta SNMP" in result["message"]
+    assert result["interfaces"] == []
 
 
 def test_layout_catalog_requires_auth_and_returns_models():

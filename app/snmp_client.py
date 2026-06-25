@@ -16,6 +16,11 @@ OIDS = {
     "ifAlias": ".1.3.6.1.2.1.31.1.1.1.18",
 }
 
+PROBE_OIDS = {
+    "sysDescr": ".1.3.6.1.2.1.1.1.0",
+    "sysUpTime": ".1.3.6.1.2.1.1.3.0",
+}
+
 TEXT_OIDS = {
     "ifDescr": "IF-MIB::ifDescr",
     "ifType": "IF-MIB::ifType",
@@ -102,6 +107,17 @@ def _parse_walk(output: str, base_oid: str) -> dict[int, str]:
     return values
 
 
+def _probe(host: str, port: int, community: str) -> list[dict[str, Any]]:
+    diagnostics = []
+    for key, oid in PROBE_OIDS.items():
+        try:
+            output = _snmpwalk(host, port, community, oid, timeout=3)
+            diagnostics.append({"oid": key, "source": oid, "count": 1 if output.strip() else 0, "ok": True})
+        except Exception as exc:
+            diagnostics.append({"oid": key, "source": oid, "count": 0, "ok": False, "error": str(exc)})
+    return diagnostics
+
+
 def _status(value: str | None) -> str:
     if not value:
         return "unknown"
@@ -143,7 +159,8 @@ def collect_interfaces_with_diagnostics(host: str, port: int, community: str) ->
         raise ValueError("snmp community not configured")
 
     walks = {}
-    diagnostics = []
+    diagnostics = _probe(host, port, community)
+    probe_ok = any(item["ok"] for item in diagnostics)
     for key, oid in OIDS.items():
         try:
             values = _parse_walk(_snmpwalk(host, port, community, oid), oid)
@@ -181,11 +198,22 @@ def collect_interfaces_with_diagnostics(host: str, port: int, community: str) ->
         })
 
     total_errors = sum(1 for item in diagnostics if not item["ok"])
+    any_walk_ok = any(item["ok"] for item in diagnostics if item["oid"] not in PROBE_OIDS)
+    if not probe_ok and not any_walk_ok:
+        message = (
+            "Sem resposta SNMP do equipamento. Verifique UDP/161 entre o servidor Ubuntu e o roteador, "
+            "community, ACL do agente SNMP e a porta cadastrada."
+        )
+    elif interfaces:
+        message = "interfaces collected"
+    else:
+        message = "SNMP respondeu, mas nenhuma interface foi encontrada nos OIDs IF-MIB consultados."
     return {
         "interfaces": interfaces,
         "diagnostics": diagnostics,
         "errors": total_errors,
-        "message": "interfaces collected" if interfaces else "SNMP respondeu, mas nenhuma interface foi encontrada nos OIDs IF-MIB consultados.",
+        "reachable": probe_ok or any_walk_ok,
+        "message": message,
     }
 
 

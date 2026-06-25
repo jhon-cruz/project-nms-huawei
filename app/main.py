@@ -442,6 +442,13 @@ async def device_snmp_test(device_id: int, user: dict = Depends(require_user)):
         result = collect_interfaces_with_diagnostics(device["host"], device["snmp_port"], device["snmp_community"])
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f'SNMP test failed: {exc}')
+    if not result.get("reachable"):
+        raise HTTPException(status_code=504, detail={
+            "message": result["message"],
+            "host": device["host"],
+            "port": device["snmp_port"],
+            "diagnostics": result["diagnostics"],
+        })
     return JSONResponse({
         "ok": True,
         "count": len(result["interfaces"]),
@@ -462,6 +469,13 @@ async def device_interfaces(device_id: int, user: dict = Depends(require_user)):
         result = collect_interfaces_with_diagnostics(device["host"], device["snmp_port"], device["snmp_community"])
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f'SNMP collect failed: {exc}')
+    if not result.get("reachable"):
+        raise HTTPException(status_code=504, detail={
+            "message": result["message"],
+            "host": device["host"],
+            "port": device["snmp_port"],
+            "diagnostics": result["diagnostics"],
+        })
     return JSONResponse({
         "device": get_device(device_id),
         "interfaces": result["interfaces"],
