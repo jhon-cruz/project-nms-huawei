@@ -23,6 +23,24 @@ def _run(args: list[str], timeout: int = 60) -> dict[str, str | int]:
     }
 
 
+def _schedule_restart() -> dict[str, str | int]:
+    command = f"sleep 2; sudo -n systemctl restart {SERVICE_NAME}"
+    subprocess.Popen(
+        ["sh", "-c", command],
+        cwd=PROJECT_ROOT,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    return {
+        "command": f"sudo -n systemctl restart {SERVICE_NAME} (agendado)",
+        "returncode": 0,
+        "stdout": "Restart agendado em segundo plano.",
+        "stderr": "",
+    }
+
+
 def git_revision() -> dict[str, str]:
     if not (PROJECT_ROOT / ".git").exists():
         return {"branch": "sem git", "commit": "desconhecido"}
@@ -64,10 +82,10 @@ def update_from_git() -> dict[str, object]:
     if failed:
         return {"ok": False, "steps": steps, **git_revision()}
 
-    restart = _run(["sudo", "-n", "systemctl", "restart", SERVICE_NAME], timeout=30)
+    restart = _schedule_restart()
     steps.append(restart)
     return {
-        "ok": int(restart["returncode"]) == 0,
+        "ok": True,
         "steps": steps,
         **git_revision(),
     }
